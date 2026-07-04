@@ -55,6 +55,19 @@ body {
   border-radius: 22px;
 }
 
+.form-card {
+  margin-bottom: 24px;
+}
+
+.action-bar {
+  margin-top: 16px;
+  padding-top: 12px;
+}
+
+.action-logo {
+  padding-top: 8px;
+}
+
 .form-control,
 .form-select {
   border-radius: 12px;

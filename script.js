@@ -8,7 +8,6 @@ const totalHoursField = document.getElementById('totalHours');
 const formFields = [
   'vehicleSideNo',
   'vehiclePlateNo',
-  'passengerName',
   'hotelName',
   'companyPersonName',
   'contactNumber',
@@ -42,19 +41,15 @@ function saveState() {
 
 function loadState() {
   const saved = localStorage.getItem(storageKey);
-  if (!saved) {
-    return;
-  }
+  if (!saved) return;
   try {
     const state = JSON.parse(saved);
     formFields.forEach((name) => {
       const element = document.getElementById(name);
-      if (element && state[name] !== undefined) {
-        element.value = state[name];
-      }
+      if (element && state[name] !== undefined) element.value = state[name];
     });
-  } catch (error) {
-    console.warn('Could not restore saved form state.', error);
+  } catch (err) {
+    console.warn('Could not restore saved form state.', err);
   }
 }
 
@@ -133,109 +128,319 @@ function getFieldValue(id) {
 
 function buildPdf() {
   const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
+  const pageWidth = 210;
+  const pageHeight = 297;
   const margin = 14;
-  const contentWidth = 210 - margin * 2;
-  let y = 10;
+  const contentWidth = pageWidth - margin * 2;
+  let y = 12;
   const headerLogo = document.querySelector('.header-logo');
+  const reservationDateRaw = getFieldValue('reservationDate') || '';
+  const reservationDate = reservationDateRaw || '-';
   const pickupTime = getFieldValue('pickupTime') ? `${getFieldValue('pickupTime')} ${getFieldValue('pickupPeriod') || ''}` : '-';
   const dropoffTime = getFieldValue('dropoffTime') ? `${getFieldValue('dropoffTime')} ${getFieldValue('dropoffPeriod') || ''}` : '-';
 
-  pdf.setFillColor(255, 255, 255);
-  pdf.roundedRect(margin, y, contentWidth, 44, 8, 8, 'F');
-  if (headerLogo && headerLogo.src) {
+  const colors = {
+    primary: { r: 79, g: 95, b: 143 },   // #4F5F8F muted blue
+    accent: { r: 180, g: 130, b: 20 },    // gold/orange for date
+    background: { r: 245, g: 247, b: 250 },
+    dark: { r: 34, g: 34, b: 34 },
+    border: { r: 200, g: 205, b: 215 },
+    tableBorder: { r: 180, g: 185, b: 195 },
+    fareBg: { r: 60, g: 70, b: 110 },     // dark blue for Total AED
+    footerBar: { r: 79, g: 95, b: 143 },  // blue accent bar
+    white: { r: 255, g: 255, b: 255 },
+    labelBlue: { r: 79, g: 95, b: 160 }   // blue for labels
+  };
+
+  // No left accent border — clean design matching the reference image
+
+  // ──────────────────────────────────────────
+  // HEADER: Logo left, Reservation Date right
+  // ──────────────────────────────────────────
+  if (typeof logoBase64 !== 'undefined') {
     try {
-      const logoWidth = 76;
-      const logoHeight = 44;
-      const logoX = margin + (contentWidth - logoWidth) / 2;
-      pdf.addImage(headerLogo.src, 'PNG', logoX, y + 2, logoWidth, logoHeight, undefined, 'FAST');
+      pdf.addImage(logoBase64, 'PNG', margin + 2, y, 45, 45, undefined, 'FAST');
     } catch (error) {
       console.warn('Could not draw header logo in PDF.', error);
     }
   }
+
+  // Reservation Date label (right side, grey text)
+  const rightEdge = margin + contentWidth;
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(9);
+  pdf.setTextColor(130, 130, 130);
+  pdf.text('Reservation Date', rightEdge, y + 12, { align: 'right' });
+
+  // Date value in gold/orange color
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(11);
+  pdf.setTextColor(colors.primary.r, colors.primary.g, colors.primary.b);
+  pdf.text(reservationDate, rightEdge, y + 20, { align: 'right' });
+
   y += 52;
-  pdf.setFillColor(240, 246, 255);
-  pdf.roundedRect(margin, y, contentWidth, 62, 6, 6, 'F');
+
+  y += 4;
+  const infoStartY = y;
+
+  // ──────────────────────────────────────────
+  // INFO SECTION BACKGROUND (Full width)
+  // ──────────────────────────────────────────
+  pdf.setFillColor(243, 245, 248);
+  pdf.rect(0, y, pageWidth, 48, 'F');
+
+  y += 8;
+
+  // ──────────────────────────────────────────
+  // INFO SECTION: Vehicle Info (left) + Customer Info (right-aligned)
+  // ──────────────────────────────────────────
+  const leftCol = margin + 4;
+  const rightCol = margin + contentWidth - 4;
+
+  // Vehicle Information heading
   pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(15, 77, 146);
   pdf.setFontSize(10);
-  pdf.text('Reservation Details', margin + 6, y + 8);
+  pdf.setTextColor(colors.dark.r, colors.dark.g, colors.dark.b);
+  pdf.text('Vehicle Information', leftCol, y + 6);
+
+  // Customer Information heading (right-aligned)
+  pdf.text('Customer Information', rightCol, y + 6, { align: 'right' });
+
+  y += 14;
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
-  const leftCol = margin + 6;
-  const midCol = margin + (contentWidth / 2) + 2;
-  let lineY = y + 16;
-  const lineStep = 6;
-  pdf.setTextColor(47, 73, 108);
-  pdf.text(`Vehicle Side No: ${getFieldValue('vehicleSideNo') || '-'}`, leftCol, lineY);
-  pdf.text(`Vehicle Plate No: ${getFieldValue('vehiclePlateNo') || '-'}`, midCol, lineY);
-  lineY += lineStep;
-  pdf.text(`Passenger Name: ${getFieldValue('passengerName') || '-'}`, leftCol, lineY);
-  pdf.text(`Hotel Name: ${getFieldValue('hotelName') || '-'}`, midCol, lineY);
-  lineY += lineStep;
-  pdf.text(`Company Person Name: ${getFieldValue('companyPersonName') || '-'}`, leftCol, lineY);
-  pdf.text(`Contact Number: ${getFieldValue('contactNumber') || '-'}`, midCol, lineY);
-  lineY += lineStep;
-  pdf.text(`Reservation Date: ${formatDateLabel(getFieldValue('reservationDate')) || '-'}`, leftCol, lineY);
-  pdf.text(`Total Passengers: ${getFieldValue('totalPassengers') || '-'}`, midCol, lineY);
-  lineY += lineStep;
-  pdf.text(`Trip Duration: ${getFieldValue('tripDuration') || '-'}`, leftCol, lineY);
-  pdf.text(`Requested Hours: ${getFieldValue('requestedHours') || '-'}`, midCol, lineY);
-  lineY += lineStep;
-  pdf.text(`Waited Hours: ${getFieldValue('waitedHours') || '-'}`, leftCol, lineY);
-  pdf.text(`Total Hours: ${getFieldValue('totalHours') || '-'}`, midCol, lineY);
 
-  y += 70;
+  // Vehicle details (left side)
+  pdf.setTextColor(colors.dark.r, colors.dark.g, colors.dark.b);
+  pdf.text(`Side Number: ${getFieldValue('vehicleSideNo') || '-'}`, leftCol, y);
+  y += 6;
+  pdf.text(`Plate Number: ${getFieldValue('vehiclePlateNo') || '-'}`, leftCol, y);
+
+  // Customer details (right-aligned)
+  let custY = infoStartY + 22;
+  pdf.text(`Hotel Name: ${getFieldValue('hotelName') || '-'}`, rightCol, custY, { align: 'right' });
+  custY += 6;
+  pdf.text(`Company Person Name: ${getFieldValue('companyPersonName') || '-'}`, rightCol, custY, { align: 'right' });
+  custY += 6;
+  pdf.text(`Contact Number: ${getFieldValue('contactNumber') || '-'}`, rightCol, custY, { align: 'right' });
+  custY += 6;
+  pdf.text(`Total Passengers: ${getFieldValue('totalPassengers') || '-'}`, rightCol, custY, { align: 'right' });
+
+  y = infoStartY + 48 + 12; // Start table below the background block
+
+  // ──────────────────────────────────────────
+  // TRIP DETAILS TABLE
+  // ──────────────────────────────────────────
+  const tableX = margin + 6;
+  const tableWidth = contentWidth - 12;
+  const headerHeight = 12;
+  const rowHeight = 14;
+  const headers = ['#', 'Trip Name', 'Pickup Location', 'Dropoff Location', 'PickUp Time', 'DropOff Time'];
+
+  // helper to format time to 12-hour
+  function formatTime12(value, period) {
+    if (!value || value === '-') return '-';
+    if (period && period.trim()) return `${value} ${period}`;
+    const m = value.match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return value;
+    let hh = parseInt(m[1], 10);
+    const mm = m[2];
+    const ampm = hh >= 12 ? 'PM' : 'AM';
+    hh = hh % 12 || 12;
+    return `${hh.toString().padStart(2, '0')}:${mm} ${ampm}`;
+  }
+
+  const pickupTimeFormatted = formatTime12(getFieldValue('pickupTime'), getFieldValue('pickupPeriod'));
+  const dropoffTimeFormatted = formatTime12(getFieldValue('dropoffTime'), getFieldValue('dropoffPeriod'));
+
+  const tripNumber = '1';
+  const valuesFormatted = [
+    `1.`,
+    tripNumber,
+    getFieldValue('pickupLocation') || '-',
+    getFieldValue('dropoffLocation') || '-',
+    pickupTimeFormatted,
+    dropoffTimeFormatted
+  ];
+
+  // Column widths
+  const colFracs = [0.05, 0.15, 0.22, 0.22, 0.18, 0.18];
+  const colWidths = colFracs.map((f) => Math.round(f * tableWidth * 100) / 100);
+  const totalCols = colWidths.reduce((s, v) => s + v, 0);
+  const colGap = Math.round((tableWidth - totalCols) * 100) / 100;
+  colWidths[colWidths.length - 1] += colGap;
+
+  // Table header - white background (clean look matching reference)
   pdf.setFillColor(255, 255, 255);
-  pdf.roundedRect(margin, y, contentWidth, 46, 6, 6, 'F');
-  pdf.setDrawColor(15, 77, 146);
-  pdf.setLineWidth(0.3);
-  pdf.line(margin, y + 10, margin + contentWidth, y + 10);
+  pdf.rect(tableX, y, tableWidth, headerHeight, 'F');
+
+  // Header text
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(8);
+  pdf.setTextColor(colors.primary.r, colors.primary.g, colors.primary.b);
+  let cx = tableX;
+  for (let i = 0; i < headers.length; i++) {
+    const w = colWidths[i];
+    pdf.text(headers[i], cx + w / 2, y + headerHeight - 4, { align: 'center', maxWidth: w - 2 });
+    cx += w;
+  }
+
+  // Header border bottom
+  pdf.setDrawColor(colors.primary.r, colors.primary.g, colors.primary.b);
+  pdf.setLineWidth(0.6);
+  pdf.line(tableX, y + headerHeight, tableX + tableWidth, y + headerHeight);
+
+  // Body row
+  const bodyY = y + headerHeight;
+
+  // Only draw bottom border for row
+  pdf.setDrawColor(colors.tableBorder.r, colors.tableBorder.g, colors.tableBorder.b);
+  pdf.setLineWidth(0.2);
+  pdf.line(tableX, bodyY + rowHeight, tableX + tableWidth, bodyY + rowHeight);
+
+  // Values
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8.5);
+  pdf.setTextColor(colors.dark.r, colors.dark.g, colors.dark.b);
+  cx = tableX;
+  for (let i = 0; i < valuesFormatted.length; i++) {
+    const w = colWidths[i];
+    const ty = bodyY + rowHeight / 2 + 3;
+    pdf.text(valuesFormatted[i], cx + w / 2, ty, { align: 'center', maxWidth: w - 2 });
+    cx += w;
+  }
+
+  y = bodyY + rowHeight + 6;
+
+  // ──────────────────────────────────────────
+  // TOTAL AED BOX (horizontal, right-aligned)
+  // ──────────────────────────────────────────
+  const fareVal = getFieldValue('totalFare') || '0';
+  const fareLabelText = 'Total AED:';
+  const fareAmountText = fareVal.length > 12 ? fareVal.slice(0, 12) + '…' : fareVal;
+
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(10);
-  pdf.setTextColor(15, 77, 146);
-  pdf.text('Trip Information', margin + 6, y + 8);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(47, 73, 108);
-  pdf.text(`Select Trip: ${getFieldValue('selectTrip') || '-'}`, leftCol, y + 18);
-  pdf.text(`Pickup Location: ${getFieldValue('pickupLocation') || '-'}`, leftCol, y + 24);
-  pdf.text(`Dropoff Location: ${getFieldValue('dropoffLocation') || '-'}`, leftCol, y + 30);
-  pdf.text(`Pickup Time: ${pickupTime}`, midCol, y + 18);
-  pdf.text(`Dropoff Time: ${dropoffTime}`, midCol, y + 24);
+  const labelW = pdf.getTextWidth(fareLabelText) + 4;
+  const amountW = pdf.getTextWidth(fareAmountText) + 8;
+  const fareBoxWidth = labelW + amountW + 8;
+  const fareBoxHeight = 10;
+  const fareBoxX = tableX + tableWidth - fareBoxWidth;
+  const fareBoxY = y;
 
-  y += 54;
-  pdf.setFillColor(240, 246, 255);
-  pdf.roundedRect(margin, y, contentWidth, 36, 6, 6, 'F');
+  // Dark blue background
+  pdf.setFillColor(colors.fareBg.r, colors.fareBg.g, colors.fareBg.b);
+  pdf.rect(fareBoxX, fareBoxY, fareBoxWidth, fareBoxHeight, 'F');
+
+  // "Total AED:" white text
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(9);
+  pdf.setTextColor(255, 255, 255);
+  pdf.text(fareLabelText, fareBoxX + 6, fareBoxY + fareBoxHeight / 2 + 2.5);
+
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(10);
-  pdf.setTextColor(15, 77, 146);
-  pdf.text('Payment & Approval', margin + 6, y + 8);
+  pdf.setTextColor(255, 255, 255);
+  pdf.text(fareAmountText, fareBoxX + fareBoxWidth - 6, fareBoxY + fareBoxHeight / 2 + 2.5, { align: 'right' });
+
+  y = fareBoxY + fareBoxHeight + 12;
+
+  // ──────────────────────────────────────────
+  // HOURS SECTION
+  // ──────────────────────────────────────────
+  const detailsX = margin + 8;
+
+  // Requested Hours
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(9);
+  pdf.setTextColor(colors.labelBlue.r, colors.labelBlue.g, colors.labelBlue.b);
+  pdf.text('Requested Hours', detailsX, y);
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
-  pdf.setTextColor(47, 73, 108);
-  pdf.text(`Payment Method: ${getFieldValue('paymentMethod') || '-'}`, leftCol, y + 18);
-  pdf.text(`Total Fare: ${getFieldValue('totalFare') || '-'}`, leftCol, y + 24);
-  pdf.text(`Prepared By: ${getFieldValue('preparedBy') || '-'}`, midCol, y + 18);
-  pdf.text(`Company Name: ${getFieldValue('companyName') || '-'}`, midCol, y + 24);
+  pdf.setTextColor(colors.dark.r, colors.dark.g, colors.dark.b);
+  pdf.text(getFieldValue('requestedHours') || '-', detailsX, y + 5);
 
-  const stampWidth = 44;
-  const stampHeight = 25;
-  const stampX = margin + contentWidth - stampWidth;
-  const stampY = y + 4;
-  if (footerStamp && footerStamp.src) {
+  y += 10;
+  // Waited Hours
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(colors.labelBlue.r, colors.labelBlue.g, colors.labelBlue.b);
+  pdf.text('Waited Hours', detailsX, y);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(colors.dark.r, colors.dark.g, colors.dark.b);
+  pdf.text(getFieldValue('waitedHours') || '-', detailsX, y + 5);
+
+  y += 10;
+  // Total Hours
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(colors.labelBlue.r, colors.labelBlue.g, colors.labelBlue.b);
+  pdf.text('Total Hours', detailsX, y);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(colors.dark.r, colors.dark.g, colors.dark.b);
+  pdf.text(getFieldValue('totalHours') || '-', detailsX, y + 5);
+
+  y += 12;
+
+  // ──────────────────────────────────────────
+  // PAYMENT, PREPARED BY, COMPANY NAME
+  // ──────────────────────────────────────────
+  // Payement Method (matching the reference spelling)
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(9);
+  pdf.setTextColor(colors.labelBlue.r, colors.labelBlue.g, colors.labelBlue.b);
+  pdf.text('Payement Method', detailsX, y);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(colors.dark.r, colors.dark.g, colors.dark.b);
+  pdf.text(getFieldValue('paymentMethod') || '-', detailsX, y + 5);
+
+  y += 10;
+  // Prepared By
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(10);
+  pdf.setTextColor(colors.labelBlue.r, colors.labelBlue.g, colors.labelBlue.b);
+  pdf.text('Prepared By', detailsX, y);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(10);
+  pdf.setTextColor(colors.dark.r, colors.dark.g, colors.dark.b);
+  pdf.text(getFieldValue('preparedBy') || '-', detailsX, y + 6);
+
+  y += 10;
+  // Company Name
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(9);
+  pdf.setTextColor(colors.labelBlue.r, colors.labelBlue.g, colors.labelBlue.b);
+  pdf.text('Company Name', detailsX, y);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(10);
+  pdf.setTextColor(colors.dark.r, colors.dark.g, colors.dark.b);
+  pdf.text(getFieldValue('companyName') || '-', detailsX, y + 6);
+
+  y += 10;
+
+  // ──────────────────────────────────────────
+  // STAMP IMAGE (bottom-left)
+  // ──────────────────────────────────────────
+  const stampX = detailsX;
+  const stampHeight = 32;
+  const stampWidth = 32;
+  // Anchor the stamp strictly to the bottom of the page
+  let stampY = pageHeight - stampHeight - 12; // 12mm from the bottom edge
+
+  if (typeof stampBase64 !== 'undefined') {
     try {
-      pdf.addImage(footerStamp.src, 'PNG', stampX, stampY, stampWidth, stampHeight, undefined, 'FAST');
+      pdf.addImage(stampBase64, 'PNG', stampX, stampY, stampWidth, stampHeight, undefined, 'FAST');
     } catch (error) {
       console.warn('Could not draw stamp image in PDF.', error);
     }
   }
 
-  y += 54;
+  // ──────────────────────────────────────────
+  // FOOTER
+  // ──────────────────────────────────────────
+  const footerY = pageHeight - 10;
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(8);
-  pdf.setTextColor(104, 120, 146);
-  pdf.text('This reservation form is generated offline for internal limousine booking use only.', margin + 6, y + 4);
-  pdf.text(`Generated: ${new Date().toLocaleString('en-GB', { hour12: false })}`, margin + 6, y + 10);
+  pdf.setTextColor(100, 100, 100);
+  pdf.text('Info@bestprincesslimousine.com', pageWidth / 2, footerY, { align: 'center' });
 
   return pdf;
 }
