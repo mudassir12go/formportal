@@ -184,7 +184,7 @@ function buildPdf() {
   // INFO SECTION BACKGROUND (Full width)
   // ──────────────────────────────────────────
   pdf.setFillColor(241, 245, 249); // #f1f5f9
-  pdf.rect(0, y, pageWidth, 48, 'F');
+  pdf.rect(0, y, pageWidth, 54, 'F');
 
   y += 8;
 
@@ -215,6 +215,8 @@ function buildPdf() {
 
   // Customer details (right-aligned)
   let custY = infoStartY + 22;
+  pdf.text(`Passenger Name: ${getFieldValue('passengerName') || '-'}`, rightCol, custY, { align: 'right' });
+  custY += 6;
   pdf.text(`Hotel Name: ${getFieldValue('hotelName') || '-'}`, rightCol, custY, { align: 'right' });
   custY += 6;
   pdf.text(`Company Person Name: ${getFieldValue('companyPersonName') || '-'}`, rightCol, custY, { align: 'right' });
@@ -223,7 +225,7 @@ function buildPdf() {
   custY += 6;
   pdf.text(`Total Passengers: ${getFieldValue('totalPassengers') || '-'}`, rightCol, custY, { align: 'right' });
 
-  y = infoStartY + 48 + 12; // Start table below the background block
+  y = infoStartY + 54 + 12; // Start table below the background block (increased from 48 to 54)
 
   // ──────────────────────────────────────────
   // TRIP DETAILS TABLE
