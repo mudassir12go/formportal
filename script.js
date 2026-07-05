@@ -54,10 +54,7 @@ function loadState() {
 }
 
 function calculateTotalHours() {
-  const requested = parseFloat(document.getElementById('requestedHours').value) || 0;
-  const waited = parseFloat(document.getElementById('waitedHours').value) || 0;
-  const total = requested + waited;
-  totalHoursField.value = total > 0 ? total.toFixed(1) : '';
+  // Total Hours is now manual — no auto-calculation
 }
 
 function validateInput(element) {
@@ -140,16 +137,16 @@ function buildPdf() {
   const dropoffTime = getFieldValue('dropoffTime') ? `${getFieldValue('dropoffTime')} ${getFieldValue('dropoffPeriod') || ''}` : '-';
 
   const colors = {
-    primary: { r: 79, g: 95, b: 143 },   // #4F5F8F muted blue
-    accent: { r: 180, g: 130, b: 20 },    // gold/orange for date
-    background: { r: 245, g: 247, b: 250 },
+    primary: { r: 92, g: 106, b: 196 },   // #5c6ac4
+    accent: { r: 92, g: 106, b: 196 },    // #5c6ac4
+    background: { r: 241, g: 245, b: 249 },
     dark: { r: 34, g: 34, b: 34 },
     border: { r: 200, g: 205, b: 215 },
-    tableBorder: { r: 180, g: 185, b: 195 },
-    fareBg: { r: 60, g: 70, b: 110 },     // dark blue for Total AED
-    footerBar: { r: 79, g: 95, b: 143 },  // blue accent bar
+    tableBorder: { r: 92, g: 106, b: 196 },  // #5c6ac4 for row borders
+    fareBg: { r: 92, g: 106, b: 196 },     // #5c6ac4 for Total AED
+    footerBar: { r: 92, g: 106, b: 196 },
     white: { r: 255, g: 255, b: 255 },
-    labelBlue: { r: 79, g: 95, b: 160 }   // blue for labels
+    labelBlue: { r: 92, g: 106, b: 196 }   // #5c6ac4 for labels
   };
 
   // No left accent border — clean design matching the reference image
@@ -186,7 +183,7 @@ function buildPdf() {
   // ──────────────────────────────────────────
   // INFO SECTION BACKGROUND (Full width)
   // ──────────────────────────────────────────
-  pdf.setFillColor(243, 245, 248);
+  pdf.setFillColor(241, 245, 249); // #f1f5f9
   pdf.rect(0, y, pageWidth, 48, 'F');
 
   y += 8;
@@ -310,7 +307,7 @@ function buildPdf() {
     cx += w;
   }
 
-  y = bodyY + rowHeight + 6;
+  y = bodyY + rowHeight;
 
   // ──────────────────────────────────────────
   // TOTAL AED BOX (horizontal, right-aligned)
@@ -321,27 +318,33 @@ function buildPdf() {
 
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(10);
-  const labelW = pdf.getTextWidth(fareLabelText) + 4;
-  const amountW = pdf.getTextWidth(fareAmountText) + 8;
-  const fareBoxWidth = labelW + amountW + 8;
+  const labelPartW = pdf.getTextWidth(fareLabelText) + 8; // Reduced padding
+  const amountPartW = pdf.getTextWidth(fareAmountText) + 10; // Reduced padding
   const fareBoxHeight = 10;
-  const fareBoxX = tableX + tableWidth - fareBoxWidth;
+  const totalFareW = labelPartW + amountPartW;
+  const fareBoxX = tableX + tableWidth - totalFareW;
   const fareBoxY = y;
 
-  // Dark blue background
+  // Solid purple background for the whole box
   pdf.setFillColor(colors.fareBg.r, colors.fareBg.g, colors.fareBg.b);
-  pdf.rect(fareBoxX, fareBoxY, fareBoxWidth, fareBoxHeight, 'F');
+  pdf.rect(fareBoxX, fareBoxY, totalFareW, fareBoxHeight, 'F');
+  
+  // Subtle vertical line separator (faint white/purple blend)
+  pdf.setDrawColor(173, 180, 225);
+  pdf.setLineWidth(0.25);
+  pdf.line(fareBoxX + labelPartW, fareBoxY, fareBoxX + labelPartW, fareBoxY + fareBoxHeight);
 
-  // "Total AED:" white text
+  // "Total AED:" in white
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(9);
+  pdf.setFontSize(10); // Matched size with the amount
   pdf.setTextColor(255, 255, 255);
-  pdf.text(fareLabelText, fareBoxX + 6, fareBoxY + fareBoxHeight / 2 + 2.5);
+  pdf.text(fareLabelText, fareBoxX + labelPartW / 2, fareBoxY + fareBoxHeight / 2, { align: 'center', baseline: 'middle' });
 
+  // Amount in white
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(10);
   pdf.setTextColor(255, 255, 255);
-  pdf.text(fareAmountText, fareBoxX + fareBoxWidth - 6, fareBoxY + fareBoxHeight / 2 + 2.5, { align: 'right' });
+  pdf.text(fareAmountText, fareBoxX + labelPartW + amountPartW / 2, fareBoxY + fareBoxHeight / 2, { align: 'center', baseline: 'middle' });
 
   y = fareBoxY + fareBoxHeight + 12;
 
@@ -417,13 +420,13 @@ function buildPdf() {
   y += 10;
 
   // ──────────────────────────────────────────
-  // STAMP IMAGE (bottom-left)
+  // STAMP IMAGE (bottom-left, well above footer)
   // ──────────────────────────────────────────
   const stampX = detailsX;
-  const stampHeight = 32;
-  const stampWidth = 32;
-  // Anchor the stamp strictly to the bottom of the page
-  let stampY = pageHeight - stampHeight - 12; // 12mm from the bottom edge
+  const stampHeight = 28;
+  const stampWidth = 28;
+  // Place stamp so it ends at 273mm (24mm above page bottom)
+  const stampY = 245;
 
   if (typeof stampBase64 !== 'undefined') {
     try {
@@ -434,9 +437,14 @@ function buildPdf() {
   }
 
   // ──────────────────────────────────────────
-  // FOOTER
+  // FOOTER with #f1f5f9 background
   // ──────────────────────────────────────────
-  const footerY = pageHeight - 10;
+  const footerBgHeight = 14;
+  const footerBgY = pageHeight - footerBgHeight;
+  pdf.setFillColor(241, 245, 249); // #f1f5f9
+  pdf.rect(0, footerBgY, pageWidth, footerBgHeight, 'F');
+
+  const footerY = pageHeight - 5;
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(8);
   pdf.setTextColor(100, 100, 100);
@@ -467,9 +475,6 @@ function addFieldListeners() {
     const element = document.getElementById(name);
     if (!element) return;
     element.addEventListener('input', () => {
-      if (name === 'requestedHours' || name === 'waitedHours') {
-        calculateTotalHours();
-      }
       saveState();
     });
     element.addEventListener('change', saveState);
@@ -486,6 +491,5 @@ function addFieldListeners() {
 
 window.addEventListener('DOMContentLoaded', () => {
   loadState();
-  calculateTotalHours();
   addFieldListeners();
 });

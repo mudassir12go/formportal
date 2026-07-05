@@ -72,20 +72,12 @@
             </div>
             <div class="col-md-4">
               <label for="totalHours" class="form-label">Total Hours</label>
-              <input type="text" class="form-control" id="totalHours" name="totalHours" readonly />
+              <input type="text" class="form-control" id="totalHours" name="totalHours" />
             </div>
             <div class="col-md-6">
               <label for="selectTrip" class="form-label">Select Trip</label>
-              <select class="form-select" id="selectTrip" name="selectTrip" required>
-                <option value="">Choose...</option>
-                <option>One Way</option>
-                <option>Airport Transfer</option>
-                <option>City Tour</option>
-                <option>Hourly Booking</option>
-                <option>Daily Rental</option>
-                <option>Round Trip</option>
-              </select>
-              <div class="invalid-feedback">Please choose the trip type.</div>
+              <input type="text" class="form-control" id="selectTrip" name="selectTrip" required />
+              <div class="invalid-feedback">Please enter the trip type.</div>
             </div>
             <div class="col-md-6">
               <label for="pickupLocation" class="form-label">Pickup Location</label>
