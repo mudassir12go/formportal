@@ -250,10 +250,9 @@ function buildPdf() {
   const pickupTimeFormatted = formatTime12(getFieldValue('pickupTime'), getFieldValue('pickupPeriod'));
   const dropoffTimeFormatted = formatTime12(getFieldValue('dropoffTime'), getFieldValue('dropoffPeriod'));
 
-  const tripNumber = '1';
   const valuesFormatted = [
     `1.`,
-    tripNumber,
+    getFieldValue('selectTrip') || '-',
     getFieldValue('pickupLocation') || '-',
     getFieldValue('dropoffLocation') || '-',
     pickupTimeFormatted,
